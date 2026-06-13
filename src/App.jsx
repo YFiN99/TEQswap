@@ -8,18 +8,17 @@ import PoolPage from './components/pool/PoolPage';
 import StatsPage from './components/stats/StatsPage';
 import './styles/cyber.css';
 
-function MainLayout({ wallet, signer, provider, connectWallet }) {
+function MainLayout({ wallet, signer, provider, connect }) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Inisialisasi Telegram Mini App
   useEffect(() => {
     if (window.Telegram?.WebApp) {
       const tg = window.Telegram.WebApp;
       tg.ready();
-      tg.expand(); // Paksa aplikasi jadi full screen
-      tg.setHeaderColor('#000508'); // Warna header sesuai tema
-      tg.setBottomBarColor('#000508'); // Warna bottom bar
+      tg.expand();
+      tg.setHeaderColor('#000508');
+      tg.setBottomBarColor('#000508');
     }
   }, []);
 
@@ -30,7 +29,7 @@ function MainLayout({ wallet, signer, provider, connectWallet }) {
     <div className="app-container">
       <TopBar 
         wallet={wallet} 
-        onConnect={connectWallet} 
+        onConnect={connect} 
       />
 
       <main className="content">
@@ -51,7 +50,8 @@ function MainLayout({ wallet, signer, provider, connectWallet }) {
 }
 
 export default function App() {
-  const { wallet, signer, provider, connectWallet } = useWallet();
+  // Pastikan nama di sini SAMA PERSIS dengan return di useWallet.js
+  const { wallet, signer, provider, connect } = useWallet();
 
   return (
     <Router>
@@ -59,7 +59,7 @@ export default function App() {
         wallet={wallet} 
         signer={signer} 
         provider={provider} 
-        connectWallet={connectWallet} 
+        connect={connect} 
       />
     </Router>
   );

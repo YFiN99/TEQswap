@@ -2,13 +2,19 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { ethers } from "ethers";
 import { TEQOIN_CHAIN } from "../config/constants";
 
+// Helper aman untuk mengambil provider tanpa memicu error konflik
+const getProvider = () => {
+  if (typeof window === "undefined" || !window.ethereum) return null;
+  // Jika ada banyak provider (multi-wallet), ambil yang pertama
+  return window.ethereum.providers ? window.ethereum.providers[0] : window.ethereum;
+};
+
 export default function useWallet() {
   const [wallet, setWallet] = useState(null);
   const [signer, setSigner] = useState(null);
   const [provider, setProvider] = useState(null);
   const [wrongChain, setWrongChain] = useState(false);
 
-  // State untuk Toast
   const [toast, setToast] = useState(null);
   const timerRef = useRef(null);
 
@@ -19,8 +25,10 @@ export default function useWallet() {
   }, []);
 
   async function initWallet(addr) {
+    const ethereum = getProvider();
+    if (!ethereum) return;
     try {
-      const prov = new ethers.BrowserProvider(window.ethereum);
+      const prov = new ethers.BrowserProvider(ethereum);
       const net = await prov.getNetwork();
       if (Number(net.chainId) !== TEQOIN_CHAIN.chainIdDec) {
         setWrongChain(true);
@@ -37,19 +45,20 @@ export default function useWallet() {
   }
 
   async function connect() {
-    if (!window.ethereum) {
-      showToast("Install MetaMask!", "err");
+    const ethereum = getProvider();
+    if (!ethereum) {
+      showToast("Wallet not found!", "err");
       return;
     }
     try {
       try {
-        await window.ethereum.request({
+        await ethereum.request({
           method: "wallet_switchEthereumChain",
           params: [{ chainId: TEQOIN_CHAIN.chainId }],
         });
       } catch (sw) {
         if (sw.code === 4902) {
-          await window.ethereum.request({
+          await ethereum.request({
             method: "wallet_addEthereumChain",
             params: [{
               chainId: TEQOIN_CHAIN.chainId,
@@ -61,7 +70,7 @@ export default function useWallet() {
           });
         } else throw sw;
       }
-      const accs = await window.ethereum.request({ method: "eth_requestAccounts" });
+      const accs = await ethereum.request({ method: "eth_requestAccounts" });
       await initWallet(accs[0]);
       showToast("WALLET CONNECTED");
     } catch (e) {
@@ -71,20 +80,26 @@ export default function useWallet() {
   }
 
   useEffect(() => {
-    if (!window.ethereum) return;
-    window.ethereum.on("accountsChanged", (accs) => {
+    const ethereum = getProvider();
+    if (!ethereum) return;
+
+    const handleAccountsChanged = (accs) => {
       if (accs.length) initWallet(accs[0]);
       else { setWallet(null); setSigner(null); }
-    });
-    window.ethereum.on("chainChanged", () => window.location.reload());
+    };
 
-    window.ethereum.request({ method: "eth_accounts" })
+    ethereum.on("accountsChanged", handleAccountsChanged);
+    ethereum.on("chainChanged", () => window.location.reload());
+
+    ethereum.request({ method: "eth_accounts" })
       .then(accs => { if (accs.length) initWallet(accs[0]); })
       .catch(() => {});
 
     return () => {
-      window.ethereum?.removeAllListeners?.("accountsChanged");
-      window.ethereum?.removeAllListeners?.("chainChanged");
+      if (ethereum.removeListener) {
+        ethereum.removeListener("accountsChanged", handleAccountsChanged);
+        ethereum.removeListener("chainChanged", () => window.location.reload());
+      }
     };
   }, []);
 
