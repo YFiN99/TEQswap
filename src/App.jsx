@@ -18,33 +18,16 @@ function MainLayout({ wallet, signer, provider, connect }) {
       tg.ready();
       tg.expand();
       
-      // Jika TIDAK ada wallet, tampilkan tombol. 
-      // Jika SUDAH ada wallet, jangan tampilkan apa-apa.
-      if (!wallet) {
-        tg.MainButton.setText("CONNECT TEQOIN WALLET");
-        tg.MainButton.show();
-        
-        const handleConnect = () => {
-          // Arahkan ke bot
-          tg.openTelegramLink("https://t.me/TeQoin_Wallet_Bot?start=connect_teqswap");
-        };
-
-        tg.MainButton.onClick(handleConnect);
-
-        // Cleanup: hapus listener agar tidak double-click
-        return () => tg.MainButton.offClick(handleConnect);
-      } else {
-        tg.MainButton.hide();
-      }
+      // Tombol MainButton disembunyikan agar tidak muncul mengganggu UI
+      tg.MainButton.hide();
     }
-  }, [wallet]);
+  }, []);
 
   const currentPath = location.pathname.replace(/^\/|\/$/g, '');
   const activeTab = currentPath === '' ? 'swap' : currentPath;
 
   return (
     <div className="app-container">
-      {/* Jika di Telegram, kita bisa sembunyikan TopBar button jika mau */}
       <TopBar 
         wallet={wallet} 
         onConnect={connect} 
@@ -68,8 +51,6 @@ function MainLayout({ wallet, signer, provider, connect }) {
 }
 
 export default function App() {
-  // PENTING: Jika useWallet() Anda menyebabkan error di mobile, 
-  // Anda harus membungkus pemanggilan wallet di useWallet.js dengan 'try-catch'
   const { wallet, signer, provider, connect } = useWallet();
 
   return (

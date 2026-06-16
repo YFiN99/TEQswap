@@ -2,10 +2,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { ethers } from "ethers";
 import { TEQOIN_CHAIN } from "../config/constants";
 
-// Helper aman untuk mengambil provider tanpa memicu error konflik
 const getProvider = () => {
   if (typeof window === "undefined" || !window.ethereum) return null;
-  // Jika ada banyak provider (multi-wallet), ambil yang pertama
   return window.ethereum.providers ? window.ethereum.providers[0] : window.ethereum;
 };
 
@@ -14,7 +12,6 @@ export default function useWallet() {
   const [signer, setSigner] = useState(null);
   const [provider, setProvider] = useState(null);
   const [wrongChain, setWrongChain] = useState(false);
-
   const [toast, setToast] = useState(null);
   const timerRef = useRef(null);
 
@@ -45,6 +42,14 @@ export default function useWallet() {
   }
 
   async function connect() {
+    // 1. Logika Khusus Telegram
+    if (window.Telegram?.WebApp) {
+      // Arahkan ke bot untuk proses koneksi
+      window.Telegram.WebApp.openTelegramLink("https://t.me/TeQoin_Wallet_Bot?start=connect_teqswap");
+      return;
+    }
+
+    // 2. Logika Browser (Metamask/Injected)
     const ethereum = getProvider();
     if (!ethereum) {
       showToast("Wallet not found!", "err");
@@ -80,6 +85,16 @@ export default function useWallet() {
   }
 
   useEffect(() => {
+    // Cek jika di Telegram, coba ambil data dari initData (jika sudah tersimpan)
+    if (window.Telegram?.WebApp) {
+      // Di sini Anda bisa menambahkan logika untuk mengecek LocalStorage 
+      // jika bot sudah menyimpan wallet user setelah redirect
+      const savedWallet = localStorage.getItem("teqoin_wallet");
+      if (savedWallet) setWallet(savedWallet);
+      return;
+    }
+
+    // Logika standard untuk Browser
     const ethereum = getProvider();
     if (!ethereum) return;
 
