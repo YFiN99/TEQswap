@@ -11,7 +11,6 @@ export default function useWallet() {
   const [wallet, setWallet] = useState(null);
   const [signer, setSigner] = useState(null);
   const [provider, setProvider] = useState(null);
-  const [wrongChain, setWrongChain] = useState(false);
   const [toast, setToast] = useState(null);
   const timerRef = useRef(null);
 
@@ -26,23 +25,10 @@ export default function useWallet() {
     if (!ethereum) return;
     try {
       const prov = new ethers.BrowserProvider(ethereum);
-      const network = await prov.getNetwork();
-      
-      // Cek ChainID (Pastikan TEQOIN_CHAIN.chainIdDec adalah angka desimal)
-      if (Number(network.chainId) !== TEQOIN_CHAIN.chainIdDec) {
-        setWrongChain(true);
-        setProvider(prov);
-        return;
-      }
-      
-      setWrongChain(false);
-      const sign = await prov.getSigner();
       setProvider(prov);
-      setSigner(sign);
+      setSigner(await prov.getSigner());
       setWallet(addr);
-    } catch (e) {
-      console.error("initWallet error:", e);
-    }
+    } catch (e) { console.error("initWallet error:", e); }
   }, []);
 
   const connectTelegram = () => {
@@ -55,18 +41,13 @@ export default function useWallet() {
 
   const connectBrowser = async () => {
     const ethereum = getProvider();
-    if (!ethereum) {
-      showToast("MetaMask/Wallet not found!", "err");
-      return;
-    }
-    
+    if (!ethereum) { showToast("Wallet not found!", "err"); return; }
     try {
       const accs = await ethereum.request({ method: "eth_requestAccounts" });
-      
       try {
         await ethereum.request({
           method: "wallet_switchEthereumChain",
-          params: [{ chainId: TEQOIN_CHAIN.chainId }], // Pastikan format hex benar (misal: "0x66b69")
+          params: [{ chainId: TEQOIN_CHAIN.chainId }],
         });
       } catch (sw) {
         if (sw.code === 4902) {
@@ -80,36 +61,13 @@ export default function useWallet() {
               blockExplorerUrls: [TEQOIN_CHAIN.blockExplorer],
             }],
           });
-        } else {
-          throw sw;
-        }
+          await new Promise(r => setTimeout(r, 1000));
+        } else throw sw;
       }
-      
       await initWallet(accs[0]);
       showToast("WALLET CONNECTED");
-    } catch (e) {
-      console.error("connect error:", e);
-      showToast("CONNECTION FAILED", "err");
-    }
+    } catch (e) { console.error("connect error:", e); showToast("CONNECTION FAILED", "err"); }
   };
 
-  useEffect(() => {
-    if (window.Telegram?.WebApp) {
-      const savedWallet = localStorage.getItem("teqoin_wallet");
-      if (savedWallet) setWallet(savedWallet);
-    } else {
-      const ethereum = getProvider();
-      if (ethereum) {
-        const handleAccountsChanged = (accs) => accs.length > 0 ? initWallet(accs[0]) : (setWallet(null), setSigner(null), setProvider(null));
-        ethereum.on("accountsChanged", handleAccountsChanged);
-        ethereum.on("chainChanged", () => window.location.reload());
-        ethereum.request({ method: "eth_accounts" }).then(accs => accs.length > 0 && initWallet(accs[0])).catch(console.error);
-        return () => {
-          ethereum.removeListener("accountsChanged", handleAccountsChanged);
-        };
-      }
-    }
-  }, [initWallet]);
-
-  return { wallet, signer, provider, wrongChain, connectTelegram, connectBrowser, toast, showToast };
+  return { wallet, signer, provider, connectTelegram, connectBrowser, toast, showToast };
 }

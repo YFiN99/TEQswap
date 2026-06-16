@@ -1,6 +1,5 @@
 export const TEQOIN_CHAIN = {
-  // PENTING: Gunakan "0x66b69" (huruf kecil 'b') untuk menghindari error Unrecognized chain ID
-  chainId: "0x66b69", 
+  chainId: "0x66b69", // Harus huruf kecil 'b'
   chainIdDec: 420377,
   chainName: "TeQoin L2",
   rpcUrl: "https://rpc.teqoin.io",
