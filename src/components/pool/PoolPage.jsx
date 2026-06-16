@@ -1,9 +1,12 @@
 import { useState } from "react";
+import { useAccount } from "wagmi"; // Menggantikan props manual
 import { TOKENS, POOL_PAIRS } from "../../config/constants";
 import TIcon from "../common/TIcon";
 import AddLiqModal from "./AddLiqModal";
 
-export default function PoolPage({ wallet, signer, provider }) {
+export default function PoolPage() {
+  // Gunakan hook wagmi untuk mendapatkan status wallet
+  const { address: wallet, isConnected } = useAccount();
   const [activePair, setActivePair] = useState(null);
 
   return (
@@ -11,10 +14,10 @@ export default function PoolPage({ wallet, signer, provider }) {
       {activePair && (
         <AddLiqModal
           pair={activePair}
-          signer={signer}
           wallet={wallet}
-          provider={provider}
           onClose={() => setActivePair(null)}
+          // Di dalam AddLiqModal, gunakan hook useWriteContract/useReadContract 
+          // untuk transaksi ke smart contract
         />
       )}
 
@@ -47,7 +50,10 @@ export default function PoolPage({ wallet, signer, provider }) {
             <div><div className="pg-label">24H VOL</div><div className="pg-val">—</div></div>
             <div><div className="pg-label">APR</div><div className="pg-val hi">—</div></div>
           </div>
-          <button className="add-btn" onClick={() => setActivePair(p)}>
+          <button 
+            className="add-btn" 
+            onClick={() => setActivePair(p)}
+          >
             ADD LIQUIDITY
           </button>
         </div>
