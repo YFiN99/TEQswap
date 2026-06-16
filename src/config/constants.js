@@ -1,5 +1,6 @@
 export const TEQOIN_CHAIN = {
-  chainId: "0x66b69",
+  // DIPERBAIKI: Menggunakan 0x66a19 (420377) sesuai respon node RPC
+  chainId: "0x66a19",
   chainIdDec: 420377,
   chainName: "TeQoin L2",
   rpcUrl: "https://rpc.teqoin.io",
