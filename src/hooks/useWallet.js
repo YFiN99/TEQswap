@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback, useRef } from "react";
 import { ethers } from "ethers";
 import { TEQOIN_CHAIN } from "../config/constants";
 
@@ -34,39 +34,42 @@ export default function useWallet() {
   const connectBrowser = async () => {
     const ethereum = getProvider();
     if (!ethereum) { showToast("Wallet not found!", "err"); return; }
-    
-    // Deteksi Rabby untuk menyesuaikan format ChainID
-    const isRabby = !!ethereum.isRabby;
-    const chainIdParam = isRabby ? TEQOIN_CHAIN.chainIdDec : TEQOIN_CHAIN.chainId;
 
     try {
+      // 1. Minta akses akun
       const accs = await ethereum.request({ method: "eth_requestAccounts" });
       
+      // 2. Coba switch ke jaringan TeQoin
       try {
         await ethereum.request({
           method: "wallet_switchEthereumChain",
-          params: [{ chainId: isRabby ? `0x${TEQOIN_CHAIN.chainIdDec.toString(16)}` : chainIdParam }],
+          params: [{ chainId: TEQOIN_CHAIN.chainId }], // Pastikan ini "0x66b69"
         });
       } catch (sw) {
+        // Jika error 4902 (Chain belum ada), tambahkan jaringan
         if (sw.code === 4902) {
           await ethereum.request({
             method: "wallet_addEthereumChain",
             params: [{
-              chainId: chainIdParam, // Gunakan format yang disukai wallet
+              chainId: TEQOIN_CHAIN.chainId,
               chainName: TEQOIN_CHAIN.chainName,
               rpcUrls: [TEQOIN_CHAIN.rpcUrl],
               nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
               blockExplorerUrls: [TEQOIN_CHAIN.blockExplorer],
             }],
           });
+          // Tunggu sedikit agar dompet selesai memproses penambahan
           await new Promise(r => setTimeout(r, 1000));
-        } else throw sw;
+        } else {
+          throw sw;
+        }
       }
+      
       await initWallet(accs[0]);
       showToast("WALLET CONNECTED");
     } catch (e) { 
       console.error("connect error:", e); 
-      showToast("CONNECTION FAILED: " + (e.message || ""), "err"); 
+      showToast("CONNECTION FAILED", "err"); 
     }
   };
 
