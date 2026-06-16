@@ -31,9 +31,13 @@ function MainLayout({ wallet, signer, provider, connect }) {
     }
   }, []);
 
-  const handleConnectClick = () => {
-    // 2. Logika Hybrid: Beri pilihan jika di dalam Telegram
-    if (window.Telegram?.WebApp) {
+const handleConnectClick = () => {
+    // 1. Cek apakah benar-benar di dalam Telegram (Mini App)
+    // Telegram Mini App secara spesifik memiliki properti initDataUnsafe
+    const isTelegramMiniApp = window.Telegram?.WebApp && window.Telegram.WebApp.initDataUnsafe?.user;
+
+    if (isTelegramMiniApp) {
+      // Jika memang di Telegram, baru tampilkan pilihan
       const useBot = window.confirm(
         "Pilih metode koneksi:\n\n" +
         "OK: Gunakan TeQoin Wallet Bot (Telegram)\n" +
@@ -41,15 +45,13 @@ function MainLayout({ wallet, signer, provider, connect }) {
       );
 
       if (useBot) {
-        const userId = window.Telegram.WebApp.initDataUnsafe?.user?.id;
-        const startParam = userId ? `auth_${userId}` : 'connect_teqswap';
-        window.Telegram.WebApp.openTelegramLink(`https://t.me/TeQoin_Wallet_Bot?start=${startParam}`);
+        const userId = window.Telegram.WebApp.initDataUnsafe.user.id;
+        window.Telegram.WebApp.openTelegramLink(`https://t.me/TeQoin_Wallet_Bot?start=auth_${userId}`);
       } else {
-        // Keluar dari WebView ke Browser utama agar MetaMask/OKX bisa terdeteksi
-        window.Telegram.WebApp.openLink("https://teqoin-dex.vercel.app");
+        window.Telegram.WebApp.openLink("https://teqswap.vercel.app");
       }
     } else {
-      // 3. Jika sudah di browser (Chrome/Edge/Brave), langsung konek wallet
+      // 2. JIKA DI BROWSER BIASA (PC/HP), LANGSUNG PANGGIL CONNECT TANPA POPUP
       connect();
     }
   };
