@@ -1,6 +1,19 @@
 import { shortAddr } from "../config/constants";
 
 export default function TopBar({ wallet, wrongChain, onConnect, onSwitch }) {
+  // Tambahkan pengecekan agar tidak error jika fungsi kosong
+  const handleConnect = () => {
+    if (onConnect && typeof onConnect === 'function') {
+      onConnect();
+    }
+  };
+
+  const handleSwitch = () => {
+    if (onSwitch && typeof onSwitch === 'function') {
+      onSwitch();
+    }
+  };
+
   return (
     <>
       <nav className="topbar">
@@ -11,7 +24,8 @@ export default function TopBar({ wallet, wrongChain, onConnect, onSwitch }) {
         </div>
         <button
           className={`connect-btn${wallet ? " connected" : ""}`}
-          onClick={!wallet ? onConnect : undefined}
+          // Pastikan menggunakan fungsi wrapper yang aman
+          onClick={!wallet ? handleConnect : undefined}
         >
           {wallet ? shortAddr(wallet) : "[ CONNECT ]"}
         </button>
@@ -20,8 +34,7 @@ export default function TopBar({ wallet, wrongChain, onConnect, onSwitch }) {
       {wrongChain && (
         <div className="wrong-chain">
           <span>⚠ WRONG NETWORK — SWITCH TO TEQOIN L2</span>
-          {/* Gunakan onSwitch untuk mengganti network */}
-          <button className="switch-btn" onClick={onSwitch}>SWITCH</button>
+          <button className="switch-btn" onClick={handleSwitch}>SWITCH</button>
         </div>
       )}
     </>
