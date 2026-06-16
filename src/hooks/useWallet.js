@@ -9,47 +9,50 @@ export default function useWallet() {
   const [isConnecting, setIsConnecting] = useState(false);
 
   const connectBrowser = useCallback(async () => {
-    if (isConnecting) return; // Mencegah klik ganda/loop
+    if (isConnecting) return;
     setIsConnecting(true);
 
-    if (typeof window.ethereum === 'undefined') {
-      alert("MetaMask atau Rabby tidak terdeteksi di browser Anda!");
+    if (!window.ethereum) {
+      alert("MetaMask atau Rabby tidak terdeteksi!");
       setIsConnecting(false);
       return;
     }
 
     try {
-      const eth = window.ethereum;
+      // 1. Minta akses akun terlebih dahulu
+      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
       
-      // 1. Minta akses akun
-      const accounts = await eth.request({ method: "eth_requestAccounts" });
-      
-      // 2. Coba pindah ke jaringan TeQoin L2
+      // 2. Coba pindah/tambah jaringan dengan penanganan error yang lebih luas
       try {
-        await eth.request({
+        await window.ethereum.request({
           method: "wallet_switchEthereumChain",
           params: [{ chainId: TEQOIN_CHAIN.chainId }],
         });
       } catch (switchError) {
-        // Jika jaringan belum ada (4902), tambahkan secara otomatis
-        if (switchError.code === 4902) {
-          await eth.request({
-            method: "wallet_addEthereumChain",
-            params: [{
-              chainId: TEQOIN_CHAIN.chainId,
-              chainName: TEQOIN_CHAIN.chainName,
-              rpcUrls: [TEQOIN_CHAIN.rpcUrl],
-              nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
-              blockExplorerUrls: [TEQOIN_CHAIN.blockExplorer],
-            }],
-          });
+        // Kode 4902 (Chain belum ada) OR -32603 (Sering terjadi saat RPC tidak sinkron)
+        if (switchError.code === 4902 || switchError.code === -32603) {
+          try {
+            await window.ethereum.request({
+              method: "wallet_addEthereumChain",
+              params: [{
+                chainId: TEQOIN_CHAIN.chainId,
+                chainName: TEQOIN_CHAIN.chainName,
+                rpcUrls: [TEQOIN_CHAIN.rpcUrl],
+                nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
+                blockExplorerUrls: [TEQOIN_CHAIN.blockExplorer],
+              }],
+            });
+          } catch (addError) {
+            console.error("Gagal menambah jaringan:", addError);
+            throw addError; // Berhenti jika gagal menambah jaringan
+          }
         } else {
-          console.error("Gagal berpindah jaringan:", switchError);
+          throw switchError;
         }
       }
 
-      // 3. Inisialisasi Ethers v6
-      const browserProvider = new ethers.BrowserProvider(eth);
+      // 3. Inisialisasi Ethers v6 setelah dipastikan jaringan benar
+      const browserProvider = new ethers.BrowserProvider(window.ethereum);
       const userSigner = await browserProvider.getSigner();
       
       setWallet(accounts[0]);
@@ -57,16 +60,12 @@ export default function useWallet() {
       setProvider(browserProvider);
       
     } catch (err) {
-      console.error("Koneksi dibatalkan atau gagal:", err);
+      console.error("Proses koneksi gagal:", err);
+      alert("Koneksi gagal: " + (err.message || "Pastikan jaringan TeQoin aktif di dompet Anda"));
     } finally {
       setIsConnecting(false);
     }
   }, [isConnecting]);
 
-  const connectTelegram = useCallback(async () => {
-    // Logika khusus Telegram Mini App
-    alert("Koneksi Telegram sedang disinkronkan...");
-  }, []);
-
-  return { wallet, signer, provider, connectBrowser, connectTelegram };
+  return { wallet, signer, provider, connectBrowser };
 }
