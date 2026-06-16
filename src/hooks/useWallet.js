@@ -28,6 +28,7 @@ export default function useWallet() {
       const prov = new ethers.BrowserProvider(ethereum);
       const network = await prov.getNetwork();
       
+      // Cek ChainID (Pastikan TEQOIN_CHAIN.chainIdDec adalah angka desimal)
       if (Number(network.chainId) !== TEQOIN_CHAIN.chainIdDec) {
         setWrongChain(true);
         setProvider(prov);
@@ -44,7 +45,6 @@ export default function useWallet() {
     }
   }, []);
 
-  // 1. FUNGSI KHUSUS TELEGRAM (Dipanggil hanya jika user pilih Telegram)
   const connectTelegram = () => {
     const tg = window.Telegram?.WebApp;
     if (tg) {
@@ -53,7 +53,6 @@ export default function useWallet() {
     }
   };
 
-  // 2. FUNGSI KHUSUS BROWSER (Dipanggil untuk MetaMask/OKX/Rabby)
   const connectBrowser = async () => {
     const ethereum = getProvider();
     if (!ethereum) {
@@ -63,10 +62,11 @@ export default function useWallet() {
     
     try {
       const accs = await ethereum.request({ method: "eth_requestAccounts" });
+      
       try {
         await ethereum.request({
           method: "wallet_switchEthereumChain",
-          params: [{ chainId: TEQOIN_CHAIN.chainId }],
+          params: [{ chainId: TEQOIN_CHAIN.chainId }], // Pastikan format hex benar (misal: "0x66b69")
         });
       } catch (sw) {
         if (sw.code === 4902) {
@@ -80,8 +80,11 @@ export default function useWallet() {
               blockExplorerUrls: [TEQOIN_CHAIN.blockExplorer],
             }],
           });
-        } else throw sw;
+        } else {
+          throw sw;
+        }
       }
+      
       await initWallet(accs[0]);
       showToast("WALLET CONNECTED");
     } catch (e) {
@@ -91,7 +94,6 @@ export default function useWallet() {
   };
 
   useEffect(() => {
-    // Logika loading tetap sama
     if (window.Telegram?.WebApp) {
       const savedWallet = localStorage.getItem("teqoin_wallet");
       if (savedWallet) setWallet(savedWallet);
