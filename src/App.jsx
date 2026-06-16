@@ -13,25 +13,42 @@ function MainLayout({ wallet, signer, provider, connect }) {
   const location = useLocation();
 
   useEffect(() => {
+    // 1. Inisialisasi Telegram Mini App
     if (window.Telegram?.WebApp) {
       const tg = window.Telegram.WebApp;
       tg.ready();
       tg.expand();
-      
-      // Tombol MainButton disembunyikan agar tidak muncul mengganggu UI
       tg.MainButton.hide();
+
+      // 2. PERBAIKAN: Tangkap data wallet dari URL (jika dikirim balik oleh bot)
+      const params = new URLSearchParams(window.location.search);
+      const walletFromBot = params.get("wallet");
+      
+      if (walletFromBot) {
+        localStorage.setItem("teqoin_wallet", walletFromBot);
+        // Kita reload atau set state agar UI tahu wallet sudah tersambung
+        window.location.href = "/"; 
+      }
     }
   }, []);
+
+  const handleConnectClick = () => {
+    if (window.Telegram?.WebApp) {
+      const userId = window.Telegram.WebApp.initDataUnsafe?.user?.id;
+      // Gunakan auth_ jika sudah ada ID, jika tidak gunakan koneksi standar
+      const startParam = userId ? `auth_${userId}` : 'connect_teqswap';
+      window.Telegram.WebApp.openTelegramLink(`https://t.me/TeQoin_Wallet_Bot?start=${startParam}`);
+    } else {
+      connect();
+    }
+  };
 
   const currentPath = location.pathname.replace(/^\/|\/$/g, '');
   const activeTab = currentPath === '' ? 'swap' : currentPath;
 
   return (
     <div className="app-container">
-      <TopBar 
-        wallet={wallet} 
-        onConnect={connect} 
-      />
+      <TopBar wallet={wallet} onConnect={handleConnectClick} />
 
       <main className="content">
         <Routes>
@@ -55,12 +72,7 @@ export default function App() {
 
   return (
     <Router>
-      <MainLayout 
-        wallet={wallet} 
-        signer={signer} 
-        provider={provider} 
-        connect={connect} 
-      />
+      <MainLayout wallet={wallet} signer={signer} provider={provider} connect={connect} />
     </Router>
   );
 }

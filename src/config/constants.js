@@ -1,10 +1,13 @@
 export const TEQOIN_CHAIN = {
-  chainId: "0x66A19",
+  // Chain ID harus 420377 (Desimal) atau 0x66B69 (Hex)
+  // Kode Anda sebelumnya 0x66A19 (salah)
+  chainId: "0x66B69", 
   chainIdDec: 420377,
   chainName: "TeQoin L2",
   rpcUrl: "https://rpc.teqoin.io",
   symbol: "ETH",
-  blockExplorer: "https://testnet-blockscan.teqoin.io/",
+  // Sesuaikan block explorer ke Mainnet
+  blockExplorer: "https://explorer.teqoin.io/", 
 };
 
 export const ROUTER_ADDRESS = "0x96364A65354AbF7fa7bF8F1B6197822670f320e6";
