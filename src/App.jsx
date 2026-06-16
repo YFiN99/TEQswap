@@ -20,25 +20,36 @@ function MainLayout({ wallet, signer, provider, connect }) {
       tg.expand();
       tg.MainButton.hide();
 
-      // 2. PERBAIKAN: Tangkap data wallet dari URL (jika dikirim balik oleh bot)
+      // Tangkap data wallet dari URL (jika dikirim balik oleh bot)
       const params = new URLSearchParams(window.location.search);
       const walletFromBot = params.get("wallet");
       
       if (walletFromBot) {
         localStorage.setItem("teqoin_wallet", walletFromBot);
-        // Kita reload atau set state agar UI tahu wallet sudah tersambung
         window.location.href = "/"; 
       }
     }
   }, []);
 
   const handleConnectClick = () => {
+    // 2. Logika Hybrid: Beri pilihan jika di dalam Telegram
     if (window.Telegram?.WebApp) {
-      const userId = window.Telegram.WebApp.initDataUnsafe?.user?.id;
-      // Gunakan auth_ jika sudah ada ID, jika tidak gunakan koneksi standar
-      const startParam = userId ? `auth_${userId}` : 'connect_teqswap';
-      window.Telegram.WebApp.openTelegramLink(`https://t.me/TeQoin_Wallet_Bot?start=${startParam}`);
+      const useBot = window.confirm(
+        "Pilih metode koneksi:\n\n" +
+        "OK: Gunakan TeQoin Wallet Bot (Telegram)\n" +
+        "CANCEL: Buka di Browser (Untuk MetaMask, OKX, Rabby)"
+      );
+
+      if (useBot) {
+        const userId = window.Telegram.WebApp.initDataUnsafe?.user?.id;
+        const startParam = userId ? `auth_${userId}` : 'connect_teqswap';
+        window.Telegram.WebApp.openTelegramLink(`https://t.me/TeQoin_Wallet_Bot?start=${startParam}`);
+      } else {
+        // Keluar dari WebView ke Browser utama agar MetaMask/OKX bisa terdeteksi
+        window.Telegram.WebApp.openLink("https://teqoin-dex.vercel.app");
+      }
     } else {
+      // 3. Jika sudah di browser (Chrome/Edge/Brave), langsung konek wallet
       connect();
     }
   };
