@@ -31,30 +31,28 @@ export default function useWallet() {
     } catch (e) { console.error("initWallet error:", e); }
   }, []);
 
-  const connectTelegram = () => {
-    const tg = window.Telegram?.WebApp;
-    if (tg) {
-      const userId = tg.initDataUnsafe?.user?.id;
-      tg.openTelegramLink(`https://t.me/TeQoin_Wallet_Bot?start=${userId ? `auth_${userId}` : 'connect_teqswap'}`);
-    }
-  };
-
   const connectBrowser = async () => {
     const ethereum = getProvider();
     if (!ethereum) { showToast("Wallet not found!", "err"); return; }
+    
+    // Deteksi Rabby untuk menyesuaikan format ChainID
+    const isRabby = !!ethereum.isRabby;
+    const chainIdParam = isRabby ? TEQOIN_CHAIN.chainIdDec : TEQOIN_CHAIN.chainId;
+
     try {
       const accs = await ethereum.request({ method: "eth_requestAccounts" });
+      
       try {
         await ethereum.request({
           method: "wallet_switchEthereumChain",
-          params: [{ chainId: TEQOIN_CHAIN.chainId }],
+          params: [{ chainId: isRabby ? `0x${TEQOIN_CHAIN.chainIdDec.toString(16)}` : chainIdParam }],
         });
       } catch (sw) {
         if (sw.code === 4902) {
           await ethereum.request({
             method: "wallet_addEthereumChain",
             params: [{
-              chainId: TEQOIN_CHAIN.chainId,
+              chainId: chainIdParam, // Gunakan format yang disukai wallet
               chainName: TEQOIN_CHAIN.chainName,
               rpcUrls: [TEQOIN_CHAIN.rpcUrl],
               nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
@@ -66,7 +64,18 @@ export default function useWallet() {
       }
       await initWallet(accs[0]);
       showToast("WALLET CONNECTED");
-    } catch (e) { console.error("connect error:", e); showToast("CONNECTION FAILED", "err"); }
+    } catch (e) { 
+      console.error("connect error:", e); 
+      showToast("CONNECTION FAILED: " + (e.message || ""), "err"); 
+    }
+  };
+
+  const connectTelegram = () => {
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      const userId = tg.initDataUnsafe?.user?.id;
+      tg.openTelegramLink(`https://t.me/TeQoin_Wallet_Bot?start=${userId ? `auth_${userId}` : 'connect_teqswap'}`);
+    }
   };
 
   return { wallet, signer, provider, connectTelegram, connectBrowser, toast, showToast };
