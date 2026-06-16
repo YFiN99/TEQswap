@@ -19,22 +19,20 @@ function MainLayout({ wallet, signer, provider, onConnectWallet }) {
       tg.expand();
       tg.MainButton.hide();
 
+      // Membaca wallet dari query string jika diarahkan dari bot
       const params = new URLSearchParams(window.location.search);
       const walletFromBot = params.get("wallet");
       if (walletFromBot) {
         localStorage.setItem("teqoin_wallet", walletFromBot);
-        window.location.href = "/"; 
       }
     }
   }, []);
 
-  const currentPath = location.pathname.replace(/^\/|\/$/g, '');
-  const activeTab = currentPath === '' ? 'swap' : currentPath;
+  const activeTab = location.pathname.replace(/^\/|\/$/g, '') || 'swap';
 
   return (
     <div className="app-container">
       <TopBar wallet={wallet} onConnect={onConnectWallet} />
-
       <main className="content">
         <Routes>
           <Route path="/" element={<SwapPage wallet={wallet} signer={signer} provider={provider} />} />
@@ -43,7 +41,6 @@ function MainLayout({ wallet, signer, provider, onConnectWallet }) {
           <Route path="*" element={<SwapPage wallet={wallet} signer={signer} provider={provider} />} />
         </Routes>
       </main>
-
       <BottomNav 
         active={activeTab} 
         onChange={(id) => navigate(id === 'swap' ? '/' : `/${id}`)} 
@@ -53,33 +50,30 @@ function MainLayout({ wallet, signer, provider, onConnectWallet }) {
 }
 
 export default function App() {
-  // PENTING: Ambil connectTelegram dan connectBrowser sesuai dengan yang ada di useWallet.js
   const { wallet, signer, provider, connectTelegram, connectBrowser } = useWallet();
 
   const handleConnectClick = useCallback(() => {
-    const isTelegramMiniApp = window.Telegram?.WebApp && window.Telegram.WebApp.initDataUnsafe?.user;
+    const tg = window.Telegram?.WebApp;
+    const isTelegramMiniApp = tg && tg.initDataUnsafe?.user;
 
-    if (isTelegramMiniApp) {
+    if (isTelegramMiniApp && !wallet) {
       const useBot = window.confirm(
-        "Pilih metode koneksi:\n\n" +
-        "OK: Gunakan TeQoin Wallet Bot (Telegram)\n" +
-        "CANCEL: Buka di Browser (Untuk MetaMask, OKX, Rabby)"
+        "Pilih metode:\n\nOK: Gunakan TeQoin Wallet Bot\nCANCEL: Buka di Browser (MetaMask/Rabby)"
       );
 
       if (useBot) {
-        connectTelegram(); // Panggil fungsi yang benar
+        connectTelegram();
       } else {
-        window.Telegram.WebApp.openLink("https://teqswap.vercel.app");
+        // Membuka di browser eksternal agar wallet ekstensi bisa diakses
+        tg.openLink("https://teqswap.vercel.app");
       }
     } else {
-      // Panggil connectBrowser karena itu nama fungsi yang benar di useWallet.js
+      // Jika di browser atau sudah terhubung, panggil connectBrowser
       if (typeof connectBrowser === 'function') {
         connectBrowser();
-      } else {
-        console.error("Fungsi 'connectBrowser' tidak tersedia di useWallet()");
       }
     }
-  }, [connectTelegram, connectBrowser]); // Tambahkan dependensi yang benar
+  }, [connectTelegram, connectBrowser, wallet]);
 
   return (
     <Router>
