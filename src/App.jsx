@@ -33,7 +33,6 @@ function MainLayout({ wallet, signer, provider, onConnectWallet }) {
 
   return (
     <div className="app-container">
-      {/* Kirim fungsi onConnectWallet langsung ke TopBar */}
       <TopBar wallet={wallet} onConnect={onConnectWallet} />
 
       <main className="content">
@@ -54,9 +53,9 @@ function MainLayout({ wallet, signer, provider, onConnectWallet }) {
 }
 
 export default function App() {
-  const { wallet, signer, provider, connect } = useWallet();
+  // PENTING: Ambil connectTelegram dan connectBrowser sesuai dengan yang ada di useWallet.js
+  const { wallet, signer, provider, connectTelegram, connectBrowser } = useWallet();
 
-  // Bungkus logika koneksi dalam useCallback agar stabil
   const handleConnectClick = useCallback(() => {
     const isTelegramMiniApp = window.Telegram?.WebApp && window.Telegram.WebApp.initDataUnsafe?.user;
 
@@ -68,20 +67,19 @@ export default function App() {
       );
 
       if (useBot) {
-        const userId = window.Telegram.WebApp.initDataUnsafe.user.id;
-        window.Telegram.WebApp.openTelegramLink(`https://t.me/TeQoin_Wallet_Bot?start=auth_${userId}`);
+        connectTelegram(); // Panggil fungsi yang benar
       } else {
         window.Telegram.WebApp.openLink("https://teqswap.vercel.app");
       }
     } else {
-      // Pastikan 'connect' adalah fungsi dari useWallet()
-      if (typeof connect === 'function') {
-        connect();
+      // Panggil connectBrowser karena itu nama fungsi yang benar di useWallet.js
+      if (typeof connectBrowser === 'function') {
+        connectBrowser();
       } else {
-        console.error("Fungsi 'connect' tidak tersedia di useWallet()");
+        console.error("Fungsi 'connectBrowser' tidak tersedia di useWallet()");
       }
     }
-  }, [connect]);
+  }, [connectTelegram, connectBrowser]); // Tambahkan dependensi yang benar
 
   return (
     <Router>
