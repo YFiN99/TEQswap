@@ -4,7 +4,6 @@ import { TEQOIN_CHAIN } from "../config/constants";
 
 const getProvider = () => {
   if (typeof window === "undefined" || !window.ethereum) return null;
-  // Menangani konflik multi-wallet (MetaMask + OKX/Rabby)
   return window.ethereum.providers ? window.ethereum.providers[0] : window.ethereum;
 };
 
@@ -29,7 +28,6 @@ export default function useWallet() {
       const prov = new ethers.BrowserProvider(ethereum);
       const network = await prov.getNetwork();
       
-      // Membandingkan Chain ID dengan aman
       if (Number(network.chainId) !== TEQOIN_CHAIN.chainIdDec) {
         setWrongChain(true);
         setProvider(prov);
@@ -46,17 +44,17 @@ export default function useWallet() {
     }
   }, []);
 
-  async function connect() {
-    // 1. Logika Telegram WebApp
-    if (window.Telegram?.WebApp) {
-      const tg = window.Telegram.WebApp;
+  // 1. FUNGSI KHUSUS TELEGRAM (Dipanggil hanya jika user pilih Telegram)
+  const connectTelegram = () => {
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
       const userId = tg.initDataUnsafe?.user?.id;
-      const startParam = userId ? `auth_${userId}` : 'connect_teqswap';
-      tg.openTelegramLink(`https://t.me/TeQoin_Wallet_Bot?start=${startParam}`);
-      return;
+      tg.openTelegramLink(`https://t.me/TeQoin_Wallet_Bot?start=${userId ? `auth_${userId}` : 'connect_teqswap'}`);
     }
+  };
 
-    // 2. Logika Browser Wallet (Injected)
+  // 2. FUNGSI KHUSUS BROWSER (Dipanggil untuk MetaMask/OKX/Rabby)
+  const connectBrowser = async () => {
     const ethereum = getProvider();
     if (!ethereum) {
       showToast("MetaMask/Wallet not found!", "err");
@@ -64,10 +62,7 @@ export default function useWallet() {
     }
     
     try {
-      // Minta akses akun
       const accs = await ethereum.request({ method: "eth_requestAccounts" });
-      
-      // Coba pindah jaringan
       try {
         await ethereum.request({
           method: "wallet_switchEthereumChain",
@@ -87,55 +82,32 @@ export default function useWallet() {
           });
         } else throw sw;
       }
-      
       await initWallet(accs[0]);
       showToast("WALLET CONNECTED");
     } catch (e) {
       console.error("connect error:", e);
       showToast("CONNECTION FAILED", "err");
     }
-  }
+  };
 
   useEffect(() => {
-    // A. Logika Telegram
+    // Logika loading tetap sama
     if (window.Telegram?.WebApp) {
       const savedWallet = localStorage.getItem("teqoin_wallet");
       if (savedWallet) setWallet(savedWallet);
-      return;
+    } else {
+      const ethereum = getProvider();
+      if (ethereum) {
+        const handleAccountsChanged = (accs) => accs.length > 0 ? initWallet(accs[0]) : (setWallet(null), setSigner(null), setProvider(null));
+        ethereum.on("accountsChanged", handleAccountsChanged);
+        ethereum.on("chainChanged", () => window.location.reload());
+        ethereum.request({ method: "eth_accounts" }).then(accs => accs.length > 0 && initWallet(accs[0])).catch(console.error);
+        return () => {
+          ethereum.removeListener("accountsChanged", handleAccountsChanged);
+        };
+      }
     }
-
-    // B. Logika Browser Wallet Event Listeners
-    const ethereum = getProvider();
-    if (!ethereum) return;
-
-    const handleAccountsChanged = (accs) => {
-      if (accs.length > 0) initWallet(accs[0]);
-      else { 
-        setWallet(null); 
-        setSigner(null); 
-        setProvider(null); 
-      }
-    };
-
-    // Reload halaman saat user pindah jaringan di wallet
-    const handleChainChanged = () => window.location.reload();
-
-    ethereum.on("accountsChanged", handleAccountsChanged);
-    ethereum.on("chainChanged", handleChainChanged);
-
-    // Initial check untuk status akun saat load halaman
-    ethereum.request({ method: "eth_accounts" })
-      .then(accs => { if (accs.length > 0) initWallet(accs[0]); })
-      .catch(console.error);
-
-    // Cleanup: Sangat penting untuk mencegah memory leaks
-    return () => {
-      if (ethereum.removeListener) {
-        ethereum.removeListener("accountsChanged", handleAccountsChanged);
-        ethereum.removeListener("chainChanged", handleChainChanged);
-      }
-    };
   }, [initWallet]);
 
-  return { wallet, signer, provider, wrongChain, connect, toast, showToast };
+  return { wallet, signer, provider, wrongChain, connectTelegram, connectBrowser, toast, showToast };
 }
