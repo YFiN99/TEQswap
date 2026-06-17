@@ -1,70 +1,50 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { ethers } from "ethers";
-import { useAccount, useWriteContract, useReadContract, useBalance } from "wagmi";
-import {
-  TOKENS, ROUTER_ADDRESS, ROUTER_ABI, ERC20_ABI,
-  buildPath, swapDeadline, shortAddr, fmtN,
-} from "../../config/constants";
+import { useAccount, useWriteContract, useReadContract } from "wagmi";
+import { TOKENS, ROUTER_ADDRESS, ROUTER_ABI, ERC20_ABI, buildPath, swapDeadline, fmtN } from "../../config/constants";
 import TIcon from "../common/TIcon";
 import TokenModal from "./TokenModal";
 import { useToast } from "../common/Toast";
 
 export default function SwapPage() {
-  const { address: wallet, isConnected } = useAccount();
+  const { address: wallet } = useAccount();
   const { writeContractAsync } = useWriteContract();
-  
-  const [tIn,  setTIn]  = useState(TOKENS[0]);
+  const { showToast } = useToast();
+
+  const [tIn, setTIn] = useState(TOKENS[0]);
   const [tOut, setTOut] = useState(TOKENS[1]);
-  const [amtIn,  setAmtIn]  = useState("");
+  const [amtIn, setAmtIn] = useState("");
   const [amtOut, setAmtOut] = useState("");
-  const [slip,   setSlip]   = useState("0.5");
-  const [settings, setSettings] = useState(false);
-  const [modal,    setModal]    = useState(null);
-  const [swapping,   setSwapping]   = useState(false);
-  const [approving,  setApproving]  = useState(false);
-  const { toast, showToast } = useToast();
+  const [swapping, setSwapping] = useState(false);
+  const [modal, setModal] = useState(null);
 
-  // 1. Menggunakan Hook wagmi untuk cek allowance
-  // Kita pakai readContract (opsional, bisa tetap pakai ethers untuk read-only)
-  const [needApprove, setNeedApprove] = useState(false);
-
-  // 2. Fetch Quote & Allowance
+  // Quote logic
   useEffect(() => {
     async function getQuote() {
-      if (!amtIn || parseFloat(amtIn) <= 0) return;
+      if (!amtIn || parseFloat(amtIn) <= 0) return setAmtOut("");
       try {
-        const provider = new ethers.BrowserProvider(window.ethereum);
+        const provider = new ethers.JsonRpcProvider("https://rpc.teqoin.io"); // Gunakan Provider statis untuk baca
         const router = new ethers.Contract(ROUTER_ADDRESS, ROUTER_ABI, provider);
-        const path = buildPath(tIn, tOut);
         const inWei = ethers.parseUnits(amtIn, tIn.decimals || 18);
+        const path = buildPath(tIn, tOut);
         const amounts = await router.getAmountsOut(inWei, path);
         setAmtOut(ethers.formatUnits(amounts[amounts.length - 1], tOut.decimals || 18));
-
-        if (wallet && tIn.address !== "native") {
-          const tok = new ethers.Contract(tIn.address, ERC20_ABI, provider);
-          const al = await tok.allowance(wallet, ROUTER_ADDRESS);
-          setNeedApprove(al < inWei);
-        }
-      } catch (e) {
-        setAmtOut("");
-      }
+      } catch { setAmtOut("0"); }
     }
     const timer = setTimeout(getQuote, 500);
     return () => clearTimeout(timer);
-  }, [amtIn, tIn, tOut, wallet]);
+  }, [amtIn, tIn, tOut]);
 
-  // 3. Fungsi Swap Baru dengan wagmi
   async function doSwap() {
     setSwapping(true);
     try {
       const path = buildPath(tIn, tOut);
       const dl = swapDeadline();
       const inWei = ethers.parseUnits(amtIn, tIn.decimals || 18);
-      const outMin = ethers.parseUnits((parseFloat(amtOut) * (1 - slip / 100)).toFixed(tOut.decimals || 18), tOut.decimals || 18);
+      const outMin = ethers.parseUnits((parseFloat(amtOut) * 0.995).toFixed(tOut.decimals || 18), tOut.decimals || 18);
 
-      let tx;
       if (tIn.address === "native") {
-        tx = await writeContractAsync({
+        await writeContractAsync({
           address: ROUTER_ADDRESS,
           abi: ROUTER_ABI,
           functionName: 'swapExactETHForTokens',
@@ -72,24 +52,40 @@ export default function SwapPage() {
           value: inWei
         });
       } else {
-        tx = await writeContractAsync({
+        await writeContractAsync({
           address: ROUTER_ADDRESS,
           abi: ROUTER_ABI,
           functionName: 'swapExactTokensForTokens',
-          args: [inWei, outMin, path, wallet, dl]
+          args: [inWei, outMin, path, dl], // Sesuaikan urutan argumen ABI Anda
+          account: wallet
         });
       }
-      showToast("✓ SWAP BERHASIL");
+      showToast("✓ SWAP SUCCESS");
     } catch (e) {
-      showToast("✕ SWAP GAGAL", "err");
+      console.error(e);
+      showToast("✕ SWAP FAILED", "err");
     }
     setSwapping(false);
   }
 
-  // ... (Sisa fungsi UI seperti doApprove, flip, setMax tetap sama)
-  // Pastikan Anda menggunakan `writeContractAsync` di dalam doApprove juga.
-
   return (
-    // ... (Template JSX Anda tetap bisa dipakai)
+    <div className="swap-container">
+      {/* Pastikan struktur return Anda seperti ini */}
+      <div className="swap-box">
+        <input value={amtIn} onChange={(e) => setAmtIn(e.target.value)} placeholder="0.00" />
+        <button onClick={() => setModal("in")}>{tIn.symbol}</button>
+      </div>
+
+      <button className="swap-btn" onClick={doSwap} disabled={swapping}>
+        {swapping ? "SWAPPING..." : "SWAP"}
+      </button>
+
+      {modal && (
+        <TokenModal 
+          onSelect={(t) => { modal === "in" ? setTIn(t) : setTOut(t); setModal(null); }} 
+          onClose={() => setModal(null)} 
+        />
+      )}
+    </div>
   );
 }
